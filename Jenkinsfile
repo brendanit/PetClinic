@@ -1,69 +1,59 @@
 pipeline {
-
-    agent {
-        node {
-            label 'master'
-        }
-    }
-
-    options {
-        buildDiscarder logRotator( 
-                    daysToKeepStr: '16', 
-                    numToKeepStr: '10'
-            )
-    }
-
+    agent any
+       triggers {
+        pollSCM "* * * * *"
+       }
     stages {
-        
-        stage('Cleanup Workspace') {
+        stage('Build Application') { 
             steps {
-                cleanWs()
-                sh """
-                echo "Cleaned Up Workspace For Project"
-                """
+                echo '=== Building Petclinic Application ==='
+                sh 'mvn -B -DskipTests clean package' 
             }
         }
-
-        stage('Code Checkout') {
+        stage('Test Application') {
             steps {
-                checkout([
-                    $class: 'GitSCM', 
-                    branches: [[name: '*/main']], 
-                    userRemoteConfigs: [[url: 'https://github.com/spring-projects/spring-petclinic.git']]
-                ])
+                echo '=== Testing Petclinic Application ==='
+                sh 'mvn test'
+            }
+            post {
+                always {
+                    junit 'target/surefire-reports/*.xml'
+                }
             }
         }
-
-        stage(' Unit Testing') {
-            steps {
-                sh """
-                echo "Running Unit Tests"
-                """
-            }
-        }
-
-        stage('Code Analysis') {
-            steps {
-                sh """
-                echo "Running Code Analysis"
-                """
-            }
-        }
-
-        stage('Build Deploy Code') {
+        stage('Build Docker Image') {
             when {
-                branch 'develop'
+                branch 'master'
             }
             steps {
-                sh """
-                echo "Building Artifact"
-                """
-
-                sh """
-                echo "Deploying Code"
-                """
+                echo '=== Building Petclinic Docker Image ==='
+                script {
+                    app = docker.build("ibuchh/petclinic-spinnaker-jenkins")
+                }
             }
         }
-
-    }   
+        stage('Push Docker Image') {
+            when {
+                branch 'master'
+            }
+            steps {
+                echo '=== Pushing Petclinic Docker Image ==='
+                script {
+                    GIT_COMMIT_HASH = sh (script: "git log -n 1 --pretty=format:'%H'", returnStdout: true)
+                    SHORT_COMMIT = "${GIT_COMMIT_HASH[0..7]}"
+                    docker.withRegistry('https://registry.hub.docker.com', 'dockerHubCredentials') {
+                        app.push("$SHORT_COMMIT")
+                        app.push("latest")
+                    }
+                }
+            }
+        }
+        stage('Remove local images') {
+            steps {
+                echo '=== Delete the local docker images ==='
+                sh("docker rmi -f ibuchh/petclinic-spinnaker-jenkins:latest || :")
+                sh("docker rmi -f ibuchh/petclinic-spinnaker-jenkins:$SHORT_COMMIT || :")
+            }
+        }
+    }
 }

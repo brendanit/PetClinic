@@ -3,7 +3,7 @@ pipeline {
 	stages {
 		stage('One') {
 			steps {
-				echo 'Hi, this is Soumitra from roytuts'
+				echo 'Hi, this is Brendan'
 			}
 		}
 		
@@ -15,19 +15,19 @@ pipeline {
 		
 		stage('Build') {
             steps {
-                bat './gradlew build'
+                echo 'Hi, this is stage 3'
             }
         }
         
         stage('Test') {
             steps {
-                bat './gradlew test'
+                echo 'Hi, this is test stage'
             }
         }
         
         stage('Check') {
             steps {
-                bat './gradlew check'
+                echo 'Hi, this is check stage'
             }
         }      
 		

@@ -43,12 +43,13 @@ pipeline {
                     sh "./gradlew sonarqube"
                 }
             }
-
+}
         stage("Quality gate") {
             steps {
                 waitForQualityGate abortPipeline: true
             }
         }
+
 
         
 		

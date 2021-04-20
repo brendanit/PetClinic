@@ -30,7 +30,24 @@ pipeline {
                 echo 'Hi, this is check stage'
             }
         }
-
+		
+        stage('Clone sources') {
+            steps {
+                git url: 'https://github.com/brendanit/PetClinic.git'
+            }
+        }
+        stage('SonarQube analysis') {
+            steps {
+                withSonarQubeEnv('SonarQube') {
+                    sh "./gradlew sonarqube"
+                }
+            }
+        }
+        stage("Quality gate") {
+            steps {
+                waitForQualityGate abortPipeline: true
+            }
+        }
 
 
         
